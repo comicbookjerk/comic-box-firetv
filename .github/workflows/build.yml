@@ -1,3 +1,4 @@
+
 name: Build Comic Box Fire TV APK
 
 on:
@@ -8,8 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
+
     steps:
       - name: Get repository
         uses: actions/checkout@v4
@@ -23,6 +26,7 @@ jobs:
           unzip -q Comic_Box_FireTV_Project.zip -d project
           test -f project/settings.gradle
           test -f project/app/build.gradle
+          echo "Comic Box project extracted successfully"
 
       - name: Install Java 17
         uses: actions/setup-java@v4
@@ -30,19 +34,30 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android platform and build tools
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "Android SDK: $SDK_ROOT"
+          SDKMANAGER=$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" \
+            'platforms;android-35' \
+            'build-tools;35.0.0' \
+            'platform-tools'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Compile the APK
+      - name: Compile Comic Box APK
         working-directory: project
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: |
+          gradle --no-daemon --stacktrace :app:assembleDebug
 
-      - name: Save the APK as a downloadable artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Comic-Box-FireTV-APK
